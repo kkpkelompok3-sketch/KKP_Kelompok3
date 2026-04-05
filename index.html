@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistem Pengaduan</title>
+<title>Pengaduan Online</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}
@@ -37,7 +37,6 @@ button{
   margin-top:12px;
   width:100%;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
 .kirim{
@@ -53,25 +52,21 @@ button{
 .logout{
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color:#fff;
-  margin-bottom:10px;
 }
 
 .hapus{
   background:#ef4444;
   color:#fff;
   width:auto;
-  padding:6px 10px;
+  padding:5px 10px;
 }
 
 /* animasi */
 button:hover{
   transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(0,0,0,0.3);
 }
 
-button:active{
-  transform: scale(0.97);
-}
+.hidden{display:none}
 
 /* tabel */
 table{
@@ -92,8 +87,6 @@ th{
 tr{
   border-bottom:1px solid #334155;
 }
-
-.hidden{display:none}
 </style>
 </head>
 
@@ -105,9 +98,9 @@ tr{
 <div class="card" id="userPage">
 <h2>📢 Pengaduan Masyarakat</h2>
 
-<input type="text" id="nama" placeholder="Nama">
-<input type="text" id="nik" placeholder="NIK">
-<input type="text" id="alamat" placeholder="Alamat Rumah">
+<input id="nama" placeholder="Nama">
+<input id="nik" placeholder="NIK">
+<input id="alamat" placeholder="Alamat Rumah">
 <textarea id="saran" placeholder="Tulis saran..."></textarea>
 
 <button class="kirim" onclick="kirim()">Kirim</button>
@@ -117,7 +110,7 @@ tr{
 <!-- LOGIN -->
 <div class="card hidden" id="loginPage">
 <h2>🔐 Login Admin</h2>
-<input type="password" id="password" placeholder="Password Admin">
+<input type="password" id="password" placeholder="Password">
 <button class="login" onclick="login()">Login</button>
 </div>
 
@@ -130,95 +123,108 @@ tr{
 
 </div>
 
-<script>
-let data = JSON.parse(localStorage.getItem("pengaduan")) || [];
-const ADMIN_PASS = "KKP123"; // ubah password di sini
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } 
+from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
-function simpan(){
-  localStorage.setItem("pengaduan", JSON.stringify(data));
-}
+// 🔥 CONFIG KAMU (SUDAH AKU PASANGKAN)
+const firebaseConfig = {
+  apiKey: "AIzaSyBQ68cEzptQqW_hh-9qRKujiyG8rZKw-_Y",
+  authDomain: "kkp-kelompok-3.firebaseapp.com",
+  projectId: "kkp-kelompok-3",
+  storageBucket: "kkp-kelompok-3.firebasestorage.app",
+  messagingSenderId: "184562883868",
+  appId: "1:184562883868:web:6b418aa5d1dc6aa9edaed9",
+  measurementId: "G-L66XJTQPZ3"
+};
 
-function kirim(){
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const ADMIN_PASS = "admin123";
+
+// KIRIM DATA
+window.kirim = async function(){
   let nama = document.getElementById("nama").value;
   let nik = document.getElementById("nik").value;
   let alamat = document.getElementById("alamat").value;
   let saran = document.getElementById("saran").value;
 
   if(!nama || !nik || !alamat || !saran){
-    alert("Semua harus diisi!");
+    alert("Isi semua!");
     return;
   }
 
-  data.push({
+  await addDoc(collection(db, "pengaduan"), {
     nama, nik, alamat, saran,
     waktu: new Date().toLocaleString()
   });
 
-  simpan();
+  alert("Berhasil dikirim!");
 
   document.getElementById("nama").value="";
   document.getElementById("nik").value="";
   document.getElementById("alamat").value="";
   document.getElementById("saran").value="";
+};
 
-  alert("Pengaduan berhasil dikirim!");
-}
+// ADMIN LOGIN
+window.showAdmin = function(){
+  userPage.classList.add("hidden");
+  loginPage.classList.remove("hidden");
+};
 
-function showAdmin(){
-  document.getElementById("userPage").classList.add("hidden");
-  document.getElementById("loginPage").classList.remove("hidden");
-}
-
-function login(){
-  let pass = document.getElementById("password").value;
-
-  if(pass === ADMIN_PASS){
-    document.getElementById("loginPage").classList.add("hidden");
-    document.getElementById("adminPage").classList.remove("hidden");
-    render();
+window.login = function(){
+  if(password.value === ADMIN_PASS){
+    loginPage.classList.add("hidden");
+    adminPage.classList.remove("hidden");
+    loadData();
   }else{
     alert("Password salah!");
   }
-}
+};
 
-function logout(){
-  document.getElementById("adminPage").classList.add("hidden");
-  document.getElementById("userPage").classList.remove("hidden");
-}
+window.logout = function(){
+  adminPage.classList.add("hidden");
+  userPage.classList.remove("hidden");
+};
 
-function hapus(index){
-  if(confirm("Yakin hapus data?")){
-    data.splice(index,1);
-    simpan();
-    render();
-  }
-}
+// LOAD DATA REALTIME
+function loadData(){
+  onSnapshot(collection(db,"pengaduan"), snapshot=>{
+    let tabel = document.getElementById("tabel");
 
-function render(){
-  let tabel = document.getElementById("tabel");
-
-  tabel.innerHTML = `
-  <tr>
-    <th>Nama</th>
-    <th>NIK</th>
-    <th>Alamat</th>
-    <th>Saran</th>
-    <th>Waktu</th>
-    <th>Aksi</th>
-  </tr>`;
-
-  data.forEach((d,i)=>{
-    tabel.innerHTML += `
+    tabel.innerHTML = `
     <tr>
-      <td>${d.nama}</td>
-      <td>${d.nik}</td>
-      <td>${d.alamat}</td>
-      <td>${d.saran}</td>
-      <td>${d.waktu}</td>
-      <td><button class="hapus" onclick="hapus(${i})">Hapus</button></td>
+      <th>Nama</th>
+      <th>NIK</th>
+      <th>Alamat</th>
+      <th>Saran</th>
+      <th>Waktu</th>
+      <th>Aksi</th>
     </tr>`;
+
+    snapshot.forEach(docu=>{
+      let d = docu.data();
+
+      tabel.innerHTML += `
+      <tr>
+        <td>${d.nama}</td>
+        <td>${d.nik}</td>
+        <td>${d.alamat}</td>
+        <td>${d.saran}</td>
+        <td>${d.waktu}</td>
+        <td><button class="hapus" onclick="hapus('${docu.id}')">Hapus</button></td>
+      </tr>`;
+    });
   });
 }
+
+// HAPUS DATA
+window.hapus = async function(id){
+  await deleteDoc(doc(db,"pengaduan",id));
+};
 </script>
 
 </body>
